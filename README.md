@@ -23,7 +23,7 @@ My previous learning and community research experiences have shaped my core valu
 
 **Food & Nutrition Sciences**:Basic Nutrition, Community Nutrition, Food Nutrition, Social Science Perspectives on Food and Nutrition, Nutrition and the Life Cycle, Human Nutrition and Nutrient Metabolism, Public Health Nutrition, Regulation of Macronutrient Metabolism, Intro to Physiochemical and Biological Aspects of Foods, Food for Contemporary Living
 
-**Humanities:** Moral Education and Fundamentals of Law, Circumstance and Policy, Healthy China, Modern Chinese History, Introduction to Mao Zedong Thought and Theoretical System of Socialism with Chinese Characteristics, Basic Principles of Marxism, Academic Communication for Multilingual Students, Intergroup Dialogue, Applied Science Communication, Oral Communication
+**Humanities:** Moral Education and Fundamentals of Law, Circumstance and Policy, Healthy China, Modern Chinese History, Basic Principles of Marxism, Academic Communication for Multilingual Students, Intergroup Dialogue, Applied Science Communication, Oral Communication
 
 **Business & Social Sciences:** Introduction to Foodservice Management, Marketing, Financial Accounting Principles, Microeconomics, Analytical Politics, Applied Financial Management
 
