@@ -16,3 +16,16 @@ During my undergraduate studies in Nutrition Sciences, I had a strong passion to
 My previous learning and community research experiences have shaped my core values in health, humanity, and sustainability, which motivated me to step into the field of healthcare. With rigorous training in methodologies and practice, I am confident and passionate about using qualitative and quantitative methods to address real life challenges at the intersection of healthcare, data science and technology.
 
 <img src="https://github.com/jeremyxuu/research-projects/blob/main/Framework%202.png?raw=true" width=60%>
+
+### Courseworks & Skills
+
+**Natural Sciences**: Inorganic Chemistry, Organic Chemistry, Analytical Chemistry, Medical Physics, Introduction to Life Science, Intro to Human Biochemistry, Microbiology & Human Health, Environmental Health and Occupational Hygiene, Traditional Chinese Medicine, Normal Human Structure, Foundations of Diseases, Calculus, Linear Algebra
+
+**Food & Nutrition Sciences**:Basic Nutrition, Community Nutrition, Food Nutrition, Social Science Perspectives on Food and Nutrition, Nutrition and the Life Cycle, Human Nutrition and Nutrient Metabolism, Public Health Nutrition, Regulation of Macronutrient Metabolism, Intro to Physiochemical and Biological Aspects of Foods, Food for Contemporary Living
+
+**Humanities:** Moral Education and Fundamentals of Law, Circumstance and Policy, Healthy China, Modern Chinese History, Introduction to Mao Zedong Thought and Theoretical System of Socialism with Chinese Characteristics, Basic Principles of Marxism, Academic Communication for Multilingual Students, Intergroup Dialogue, Applied Science Communication, Oral Communication
+
+**Business & Social Sciences:** Introduction to Foodservice Management, Marketing, Financial Accounting Principles, Microeconomics, Analytical Politics, Applied Financial Management
+
+**Research & Lab Skills:** Experiments of Organic Chemistry, The Experiment of Cell and Molecular Biology, Hygiene Toxicology, Methods in Nutritional Sciences, Literature Retrieval and Utilization, Nutrition-epidemiology, Research in Human Nutrition and Health, Empirical Research, Independent Study, Statistics for Data Analysis (R), Data and Programming for Public Policy (Python), Program Evaluation (R)
+
