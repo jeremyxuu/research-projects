@@ -13,6 +13,6 @@ During my undergraduate studies in Nutrition Sciences, I had a strong passion to
 
 <img src="https://github.com/jeremyxuu/research-projects/blob/main/Framework%201.png?raw=true" width=60%>
 
-My previous learning and community research experiences have shaped my core values in health, humanity, and sustainability, which motivated me to step into the field of healthcare.
+My previous learning and community research experiences have shaped my core values in health, humanity, and sustainability, which motivated me to step into the field of healthcare. With rigorous training in methodologies and practice, I am confident and passionate about using qualitative and quantitative methods to address real life challenges at the intersection of healthcare, data science and technology.
 
 <img src="https://github.com/jeremyxuu/research-projects/blob/main/Framework%202.png?raw=true" width=60%>
