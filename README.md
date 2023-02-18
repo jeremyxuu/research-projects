@@ -1,4 +1,4 @@
-I've uploaded some of my academic projects on social sciences and life sciences research.
+I've uploaded some of my academic projects on scientific research.
 
 ### Content
 1. [Qualitative Research on Chocolate Consumption](https://github.com/jeremyxuu/research-projects/blob/main/1.%20Qualitative%20Research%20on%20Chocolate%20Consumption.pdf)
