@@ -6,7 +6,7 @@ I've uploaded some of my academic projects on scientific research.
 3. [Urinalysis](https://github.com/jeremyxuu/research-projects/blob/main/3.%20Urinalysis.pdf)
 4. [Hematology](https://github.com/jeremyxuu/research-projects/blob/main/4.%20Hematology.pdf)
 5. [Policy Analysis on Childhood Obesity](https://github.com/jeremyxuu/research-projects/blob/main/5.%20Policy%20Analysis%20on%20Childhood%20Obesity.pdf)
-6. [Thesis on Food Insecurity](https://github.com/jeremyxuu/research-projects/blob/main/6.%20Thesis%20on%20Food%20Insecurity.pdf)
+6. [Best Practice Report on Food Response](https://github.com/jeremyxuu/research-projects/blob/main/6.%20Best%20Practice%20Report%20on%20Food%20Response.pdf)
 7. [Science Communication Strategy Plan](https://github.com/jeremyxuu/research-projects/blob/main/7.%20Science%20Communication%20Strategy%20Plan.pdf)
 8. [Corporate Strategy Foodservice Management](https://github.com/jeremyxuu/research-projects/blob/main/8.%20Corporate%20Strategy%20Foodservice%20Management.pdf)
 9. [Air Quality Regulation (R)](https://github.com/jeremyxuu/research-projects/blob/main/9.%20Air%20Quality%20Regulation%20(R).pdf)
