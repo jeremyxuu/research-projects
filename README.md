@@ -11,6 +11,7 @@ I've uploaded some of my academic projects on scientific research.
 8. [Corporate Strategy Foodservice Management](https://github.com/jeremyxuu/research-projects/blob/main/8.%20Corporate%20Strategy%20Foodservice%20Management.pdf)
 9. [Air Quality Regulation (R)](https://github.com/jeremyxuu/research-projects/blob/main/9.%20Air%20Quality%20Regulation%20(R).pdf)
 10. [Population Health and Economic Growth (Python)](https://github.com/jeremyxuu/research-projects/blob/main/10.%20Population%20Health%20and%20Economic%20Growth%20(Python).pdf)
+11. [Government Tax Revenue Analysis (Python)](https://github.com/jeremyxuu/research-projects/blob/main/11.%20Government%20Tax%20Revenue%20Analysis%20(Python).pdf)
 
 ### Introduction
 During my undergraduate studies in Nutrition Sciences, I had a strong passion to discover the beauty of the human ecology framework. I believe that an interdisciplinary approach can help us better identify and solve the social challenges in today's world. Thus, I'm pursuing a Master of Public Policy degree, with rigorous training in data analytics and policy analysis, pushing me to apply these skills beyond theoretical groundings.
