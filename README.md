@@ -3,7 +3,7 @@ I've uploaded some of my academic projects on scientific research.
 ### Content
 1. [Qualitative Research on Chocolate Consumption](https://github.com/jeremyxuu/research-projects/blob/main/1.%20Qualitative%20Research%20on%20Chocolate%20Consumption.pdf)
 2. [Body Composition](https://github.com/jeremyxuu/research-projects/blob/main/2.%20Body%20Composition.pdf)
-3. [Urinalysis](https://github.com/jeremyxuu/research-projects/blob/main/3.%20Urinalysis.pdf)
+3. [Health Claim Paper](https://github.com/jeremyxuu/research-projects/blob/main/3.%20Health%20Claim%20Paper.pdf)
 4. [Hematology](https://github.com/jeremyxuu/research-projects/blob/main/4.%20Hematology.pdf)
 5. [Policy Analysis on Childhood Obesity](https://github.com/jeremyxuu/research-projects/blob/main/5.%20Policy%20Analysis%20on%20Childhood%20Obesity.pdf)
 6. [Best Practice Report on Food Response](https://github.com/jeremyxuu/research-projects/blob/main/6.%20Best%20Practice%20Report%20on%20Food%20Response.pdf)
