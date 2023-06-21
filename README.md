@@ -1,5 +1,5 @@
 ### Content 
-#### [Scientific Research | Data Analytics | Policy Analysis & Management]
+#### [Data Analytics | Policy Analysis & Management | Scientific Research]
 
 DA001  [Air Quality Regulation (R)](https://github.com/jeremyxuu/research-projects/blob/main/DA001%20Air%20Quality%20Regulation%20(R).pdf)\
 DA002  [Population Health and Economic Growth (Python)](https://github.com/jeremyxuu/research-projects/blob/main/DA002%20Population%20Health%20and%20Economic%20Growth%20(Python).pdf)\
