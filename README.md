@@ -1,5 +1,5 @@
 ### Content 
-# [Scientific Research | Data Analytics | Policy Analysis & Management]
+#### [Scientific Research | Data Analytics | Policy Analysis & Management]
 
 SR001 [Qualitative Research on Chocolate Consumption](https://github.com/jeremyxuu/research-projects/blob/main/1.%20Qualitative%20Research%20on%20Chocolate%20Consumption.pdf)\
 SR002 [Body Composition](https://github.com/jeremyxuu/research-projects/blob/main/2.%20Body%20Composition.pdf)\
