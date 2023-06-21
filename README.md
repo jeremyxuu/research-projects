@@ -12,10 +12,10 @@ DA001  [Air Quality Regulation (R)](https://github.com/jeremyxuu/research-projec
 DA002  [Population Health and Economic Growth (Python)](https://github.com/jeremyxuu/research-projects/blob/main/10.%20Population%20Health%20and%20Economic%20Growth%20(Python).pdf)\
 DA003  [Government Tax Revenue Analysis (Python)](https://github.com/jeremyxuu/research-projects/blob/main/11.%20Government%20Tax%20Revenue%20Analysis%20(Python).pdf)\
 DA004  [Forecasting Lightweight Vehicle Sales (R)](https://github.com/jeremyxuu/research-projects/blob/main/12.%20Forecasting%20Lightweight%20Vehicle%20Sales.pdf)\
-DA005  [Mapping Health Disparities in Chicago (ArcGIS)](https://github.com/jeremyxuu/research-projects/blob/main/13.%20Mapping%20Health%20Disparities%20in%20Chicago.pdf)\
+DA005  [Mapping Health Disparities in Chicago (ArcGIS)](https://github.com/jeremyxuu/research-projects/blob/main/13.%20Mapping%20Health%20Disparities%20in%20Chicago.pdf)
 
 
 PAM001  [Policy Analysis on Childhood Obesity](https://github.com/jeremyxuu/research-projects/blob/main/5.%20Policy%20Analysis%20on%20Childhood%20Obesity.pdf)\
 PAM002  [Best Practice Report on Food Response](https://github.com/jeremyxuu/research-projects/blob/main/6.%20Best%20Practice%20Report%20on%20Food%20Response.pdf)\
 PAM003  [Corporate Strategy Foodservice Management](https://github.com/jeremyxuu/research-projects/blob/main/8.%20Corporate%20Strategy%20Foodservice%20Management.pdf)\
-PAM004  [Comparative Analysis of Great Recession in Argentina and Brazil](https://github.com/jeremyxuu/research-projects/blob/main/14.%20Comparative%20Analysis%20of%20Great%20Recession%20in%20Argentina%20and%20Brazil.pdf)\
+PAM004  [Comparative Analysis of Great Recession in Argentina and Brazil](https://github.com/jeremyxuu/research-projects/blob/main/14.%20Comparative%20Analysis%20of%20Great%20Recession%20in%20Argentina%20and%20Brazil.pdf)
