@@ -1,9 +1,9 @@
 ### Content [Scientific Research | Data Analytics | Policy Analysis & Management]
 
-SR001 [SR001 Qualitative Research on Chocolate Consumption](https://github.com/jeremyxuu/research-projects/blob/main/1.%20Qualitative%20Research%20on%20Chocolate%20Consumption.pdf)
-SR002 [Body Composition](https://github.com/jeremyxuu/research-projects/blob/main/2.%20Body%20Composition.pdf)
-SR003 [Health Claim Paper](https://github.com/jeremyxuu/research-projects/blob/main/3.%20Health%20Claim%20Paper.pdf)
-SR004 [Hematology](https://github.com/jeremyxuu/research-projects/blob/main/4.%20Hematology.pdf)
+SR001 [Qualitative Research on Chocolate Consumption](https://github.com/jeremyxuu/research-projects/blob/main/1.%20Qualitative%20Research%20on%20Chocolate%20Consumption.pdf)\
+SR002 [Body Composition](https://github.com/jeremyxuu/research-projects/blob/main/2.%20Body%20Composition.pdf)\
+SR003 [Health Claim Paper](https://github.com/jeremyxuu/research-projects/blob/main/3.%20Health%20Claim%20Paper.pdf)\
+SR004 [Hematology](https://github.com/jeremyxuu/research-projects/blob/main/4.%20Hematology.pdf)\
 SR005 [Science Communication Strategy Plan](https://github.com/jeremyxuu/research-projects/blob/main/7.%20Science%20Communication%20Strategy%20Plan.pdf)
 
 
