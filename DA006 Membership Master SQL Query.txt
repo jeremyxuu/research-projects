@@ -1,0 +1,900 @@
+
+use NimbleReplica
+
+--Create a master temporary table to include all the columns that are needed in the query. The calculations will be computed against this table.
+IF OBJECT_ID('tempdb..#MemQ') IS NOT NULL 
+BEGIN 
+    DROP TABLE #MemQ 
+END
+go
+
+--Create common table expressions for Next Term and Previous Term's data to use in place of subqueries
+;with cteNextTerm(NU__Account2__c,ControlGroupID__c, ControlGroupDate__c, CreatedDate, NU__ExternalID__c, Next_Term, 
+        Next_SubRef, Next_startdate, Next_enddate, Id, NU__OrderItemLine__c, NU__MembershipType2__c, NU__Status__c,KeyCode__c, NU__AutoRenew__c, CTC__c)
+   AS
+   (
+   select NU__Account2__c, ControlGroupID__c, ControlGroupDate__c, CreatedDate, NU__ExternalID__c, Right(NU__ExternalID__c,(Len(NU__ExternalID__c) - 13)) as 'Next_Term', 
+        Left(NU__ExternalID__c, 12) as 'Next_SubRef', NU__StartDate__c 'Next_startdate', NU__EndDate__c 'Next_enddate', Id, NU__OrderItemLine__c, 
+        NU__MembershipType2__c, NU__Status__c, KeyCode__c, NU__AutoRenew__c, CTC__c
+    from NU__Membership__c with(NOLOCK)
+    where
+        ISNUMERIC(Left(NU__ExternalID__c, 12)) = 1
+        -- Checking that the Right Side of the "-"Delimeter is Numeric
+        AND ISNUMERIC(Right(NU__ExternalID__c, Len(NU__ExternalID__c) - 13)) = 1
+),
+     
+	 ctePrvTerm(NU__Account2__c,ControlGroupID__c, ControlGroupDate__c, CreatedDate, NU__ExternalID__c, Prv_Term, 
+        Prv_SubRef, Prv_startdate, Prv_enddate, Id,NU__Status__c,KeyCode__c, NU__AutoRenew__c, CTC__c)   
+   AS
+   (
+    select NU__Account2__c, ControlGroupID__c, ControlGroupDate__c, CreatedDate, NU__ExternalID__c, Right(NU__ExternalID__c,(Len(NU__ExternalID__c) - 13)) as 'Prv_Term', 
+        Left(NU__ExternalID__c, 12) as 'Prv_SubRef' , NU__StartDate__c 'Prv_startdate', NU__EndDate__c 'Prv_enddate', Id,NU__Status__c,KeyCode__c, NU__AutoRenew__c, CTC__c
+    from NU__Membership__c with(NOLOCK)
+    where
+        ISNUMERIC(Left(NU__ExternalID__c, 12)) = 1
+        -- Checking that the Right Side of the "-"Delimeter is Numeric
+        AND ISNUMERIC(Right(NU__ExternalID__c, Len(NU__ExternalID__c) - 13)) = 1
+)
+
+,
+	
+	cteEthnicOrigin(ID, EthnicOrigins,EthnicOrigins_sd,RN1) 
+	as (
+	select *, RN1 = row_number() over (partition by ID order by ID) from [NimbleWorkspaceMBRS].[dbo].[EthnicOrigins]
+	),
+	
+	cteRacialID(ID,RacialIdentity,RacialIdentity_sd,RN2)
+	as (
+	select *, RN2 = row_number() over (partition by ID order by ID)	from [NimbleWorkspaceMBRS].[dbo].[RacialIdentity]
+	),
+
+	cteGenderID(ID,GenderIdentity,GenderIdentity_sd,RN3)
+	as(
+	select *, RN3 = row_number() over (partition by ID order by ID) from NimbleWorkspaceMBRS.dbo.GenderIdentity	
+	),
+
+	cteSexualOrientation(ID,SexualOrientation,SexualOrientation_sd,RN4)
+	as(
+	select *, RN4 = row_number() over (partition by ID order by ID) from NimbleWorkspaceMBRS.dbo.SexualOrientation
+	),
+
+	--disability status can be joined directly because nobody selected both Yes and No
+	--but keep things consistent in case somebody does in the future
+	cteDisabilityStatus(ID,DisabilityStatus,RN5)
+	as(
+	select *, RN5 = row_number() over (partition by ID order by ID) from NimbleWorkspaceMBRS.dbo.DisabilityStatus
+	),
+
+	cteAward as (select *, RN6 = row_number() over (partition by Account__c order by Account__c) from Award__c),
+	
+	cteCM as (select *, RN7 = row_number() over (partition by NU__Account2__c order by NU__Account2__c) from NU__CommitteeMembership__c where NU__State__c = 'Current'),
+	
+	cteCommittee as (select *, RN8 = row_number() over (partition by Id order by Id) from NU__Committee__c) --this table is fully unique; did this to stay consistent
+
+
+
+--Adding all the columns to the master temporary table
+select
+    Mem.Id as 'Membership_Id', --Neal added this for lookups
+	Acc.CustomerNumber__c, --get Customer Number from Account, not Membership
+    Mem.[Name] 'Membership_Name',
+	Acc.PersonEmail 'Email', --PersonEmail is the most up-to-date field for emails
+	Acc.Id 'Account_Id',
+
+Mem.ControlGroupID__c , Mem.ControlGroupDate__c , O.CreatedDate,
+NxMem.ControlGroupID__c NxMemControlGroupID__c, NxMem.ControlGroupDate__c NxMemControlGroupDate__c,nxO.CreatedDate NxMemCreatedDate,
+
+
+    Right(Mem.NU__ExternalID__c,(Len(Mem.NU__ExternalID__c) - 13)) as 'Adv_Term',
+
+    Right(NxMem.NU__ExternalID__c,(Len(NxMem.NU__ExternalID__c) - 13)) as 'Adv_Next_Term',
+
+    PrvMem.Prv_enddate 'Prev_Term_End_Date', -- Getting the Pervious Term End Date
+
+    Mem.NU__StartDate__c 'CurrentMem_Start_Date', -- Getting the Current Membership Term Start Date
+
+    Mem.NU__EndDate__c 'CurrentMem_End_Date', -- Getting the Current Membership Term End Date
+
+    NxMem.Next_startdate 'NextMem_Start_Date',-- Getting the Next Membership Term Start Date
+	
+    NxMem.Next_enddate 'NextMem_End_Date', -- Getting the Next Membership Term End Dat
+
+    Mem.KeyCode__c 'CurrentMem_KeyCode', -- Getting the Current Membership KeyCode
+	NxMem.KeyCode__c 'NextMem_KeyCode', -- Getting the Next Membership KeyCode
+	PrvMem.KeyCode__c 'PrvtMem_KeyCode', -- Getting the Previous Membership KeyCode 
+
+	acc.ShippingCountry 'Shipping_Country', --Getting the Shipping Country from the Account table; added 4/19
+    acc.ShippingStateCode 'Shipping_State', -- Getting the  Shipping State Code from the Account table
+	acc.ShippingCity 'Shipping_City', --Shipping city 5/26
+	acc.ShippingStreet 'Shipping_Street', --Getting shipping street 5/26
+	acc.ShippingPostalCode 'Shipping_ZipCode', --Zip Code 5/26
+
+	Year(Mem.NU__StartDate__c) 'CurrentMem_Start_year', -- Getting the Current Membership Start Year
+
+    Month(Mem.NU__StartDate__c) 'CurrentMem_Start_Month', -- Getting the Current Membership Start Month
+
+    Year(Mem.NU__EndDate__c) 'CurrentMem_Exp_year', -- Getting the Current Membership Expired Year
+
+    Month(Mem.NU__EndDate__c) 'CurrentMem_Exp_Month', -- Getting the Current Membership Expired Month
+	
+	MemTyp.Name 'Membership_Type', Mem.Rate__c, O.NU__SubTotal__c,
+    
+	Mem.NU__AutoRenew__c 'CurrentMem_AutoRenew', -- Getting the Current Membership Auto Renew Status
+	NxMem.NU__AutoRenew__c 'NextMem_AutoRenew', -- Getting the Next Membership Auto Renew Status
+	PrvMem.NU__AutoRenew__c 'PrvMem_AutoRenew', -- Getting the Previous Membership Auto Renew Status
+
+    
+	prod.Name as 'Product_Type',
+	Mem.Name 'Membership_Category',
+
+	Mem.NU__Status__c ,NxMem.Id NxMemId,NxMem.NU__Status__c NxMemNU__Status__c, PrvMem.NU__Status__c PrvMemNU__Status__c,
+	
+
+	acc.NU__FullName__c as 'Account_Name',
+	Sub.Id as 'Subscription_Id',
+	Sub.Name as 'Subscription_Name',
+	Mem.NU__ExternalID__c 'Mem_ExternalID',
+	Acc.NU__ExternalID__c 'Account_ExternalID',
+	Right(Mem.NU__ExternalID__c,(Len(Mem.NU__ExternalID__c)) - 13) MID,
+	Mem.CTC__c 'CurrentMem_CTC', -- Getting the Current Membership CTC
+	NxMem.CTC__c 'NextMem_CTC', -- Getting the Next Membership CTC
+	PrvMem.CTC__c 'PrvtMem_CTC', -- Getting the Previous Membership CTC
+
+	acc.PromoteViaEmail__pc as 'Promote_via_Email',
+	acc.PromoteViaMail__pc as 'Promote_via_Mail',
+	Eth.EthnicOrigins,
+	Eth.EthnicOrigins_sd,
+	Eth.ID 'Eth_ID',
+	Rac.RacialIdentity,
+	Rac.RacialIdentity_sd,
+	Rac.ID 'Rac_ID',
+	Gen.GenderIdentity,
+	Gen.GenderIdentity_sd,
+	Gen.ID 'Gen_ID',
+	SO.SexualOrientation,
+	SO.SexualOrientation_sd,
+	SO.ID 'SO_ID',
+	Dis.DisabilityStatus,
+	Dis.ID 'Dis_ID',
+	--row numbers below:
+	Eth.RN1,rac.RN2,gen.RN3,so.RN4,dis.RN5,
+
+	acc.FirstName 'First_Name',
+	acc.LastName 'Last_Name',
+	acc.NU__Suffix__c 'Suffix',
+	acc.PersonMailingCity 'Mailing_City',
+	acc.PersonMailingCountry 'Mailing_Country',
+	acc.PersonMailingPostalCode 'Mailing_ZipCode',
+	acc.PersonMailingStateCode 'Mailing_State',
+	acc.PersonMailingStreet 'Mailing_Street',
+	acc.Title__pc 'Title',
+
+	acc.BillingCompany__c 'Billing_Company',
+	acc.HighestDegree_sd__pc 'Highest_Degree_Description',
+	acc.HighestDegreePB__c 'Highest_Degree',
+	acc.EmploymentSector__pc 'Employment_Sector',
+	acc.JobFunction_sd__pc 'Job_Function',
+	acc.PrimaryDiscipline__pc 'Primary_Discipline',
+	acc.PrimarySection__pc 'Primary_Section',
+	acc.SecondarySection__pc 'Secondary_Section',
+	acc.TertiarySection__pc 'Tertiary_Section',
+	acc.BirthYear__pc 'Birth_Year', 
+
+	awd.RecordTypeId,
+	awd.PrizeName__c 'Prize_Name',
+	com.Name 'Committee_Name',
+	cm.NU__EndDate__c 'Committee_End_Date',
+	year(cm.NU__EndDate__c) 'Committee_End_Year',
+	cm.NU__StartDate__c 'Committee_Start_Date',
+	year(cm.NU__StartDate__c) 'Committee_Start_Year',
+	cm.NU__State__c 'Committee_Mem_Status',
+
+	   acc.highestdegree__pc 'Education',
+	   awd.Status__c 'Award_Status',
+	   awd.AwardYear__c 'Award_Year',
+
+	--IDP field for STPF
+	acc.IdpId__c 'IDP',
+
+	Bill.BillingCompany__c,
+	Bill.[Name] 'IMP_InstitutionCode',
+
+	--24/01/26 Adding fields for Governance list pull
+	acc.Continuous_Membership_Start__c 'Continuous_Membership_Start_Date',
+	acc.NU__JoinOn__c 'Join_On_Date'
+	   
+into #MemQ 
+from NU__Membership__c Mem with(NOLOCK)
+left join cteNextTerm NxMem 
+	on  Left(Mem.NU__ExternalID__c,12) = NxMem.Next_SubRef
+    and Right(Mem.NU__ExternalID__c,(Len(Mem.NU__ExternalID__c) - 13)) = NxMem.Next_Term -1
+
+left join ctePrvTerm  PrvMem 
+	on  Left(Mem.NU__ExternalID__c,12) = PrvMem.Prv_SubRef
+    and Right(Mem.NU__ExternalID__c,(Len(Mem.NU__ExternalID__c) - 13)) = PrvMem.Prv_Term + 1
+
+
+left join NU__MembershipType__c MemTyp on Mem.NU__MembershipType2__c = Memtyp.ID
+
+left join NU__MembershipType__c NxMemTyp on NxMem.NU__MembershipType2__c = NxMemtyp.ID
+
+left join Account acc on Mem.NU__Account2__c = acc.Id
+
+left join NU__Subscription__c Sub on Mem.NU__ExternalID__c = sub.NU__ExternalID__c
+
+left join NU__Product__c prod on sub.NU__Product2__c = prod.id
+
+left join NU__OrderItemLine__c OIL on Mem.NU__OrderItemLine__c = OIL.ID
+
+left join NU__OrderItem__c OI on OIL.NU__OrderItem__c = OI.ID
+
+left join NU__Order__C O on OI.NU__Order__c = O.ID
+
+left join NU__OrderItemLine__c NXOIL on NxMem.NU__OrderItemLine__c = NXOIL.ID
+
+left join NU__OrderItem__c NXOI on NXOIL.NU__OrderItem__c = NXOI.ID
+
+left join NU__Order__C NXO on NXOI.NU__Order__c = NXO.ID
+
+left join (select * from cteEthnicOrigin where RN1 =1) Eth on Eth.ID = acc.Id
+
+left join (select * from cteRacialID where RN2 = 1) Rac on Rac.ID = acc.Id
+
+left join (select * from cteGenderID Gen where RN3 = 1) Gen on Gen.ID = acc.Id
+
+left join (select * from cteSexualOrientation where RN4 = 1) SO on SO.ID = acc.Id
+
+left join (select * from cteDisabilityStatus where RN5 = 1) Dis on Dis.ID = acc.Id
+
+left join (select * from cteAward where RN6 = 1) awd on acc.id = awd.Account__c
+
+left join (select * from cteCM where RN7=1) CM on acc.Id = CM.NU__Account2__c
+
+left join (select * from cteCommittee where RN8 =1) Com on CM.NU__Committee2__c = Com.Id
+
+left join Account Bill on O.NU__BillTo__c = Bill.Id --Join from current order to Account for Bill-to company information
+
+
+where
+
+Year(Mem.NU__EndDate__c) >= (year(GETDATE()) - 5) 
+    and LEN(Mem.NU__ExternalId__c) > 13
+    and (LEN(NxMem.NU__ExternalId__c) > 13 or NxMem.NU__ExternalID__c is null)
+
+and(
+-- Checking that the Left Side of the "-"Delimeter is Numeric
+ISNUMERIC(Left(Mem.NU__ExternalID__c, 12)) = 1
+-- Checking that the Right Side of the "-"Delimeter is Numeric
+AND ISNUMERIC(Right(Mem.NU__ExternalID__c, Len(Mem.NU__ExternalID__c) - 13)) = 1
+)
+	and NOT (Memtyp.Name = 'Supporting' AND Year(Mem.NU__EndDate__c) < 2020)
+	and Mem.NU__Status__c <> 'Cancelled'
+go
+
+--Final Master query being pulled from the temporary table
+select
+    Account_Name,
+	Account_Id,
+	Membership_Id, --Neal added this for lookups
+	case when CustomerNumber__c is null then ltrim(rtrim(right(left(Account_ExternalID,12),8))) else CustomerNumber__c end as CustomerNumber__c,
+    Membership_Name,
+	Email,
+	case when lower(Email) like '%@aaas.org' then 'Y' end as 'AAAS_Member',
+	case when lower(Email) like '%@example.com' then 'Y' end as 'Test_or_Duplicate_Email',
+
+	Continuous_Membership_Start_Date, -- added 24/01/26
+	Join_On_Date, -- added 24/01/26
+
+	--to align with target audiences identified by marketing; a higher level of looking at the data than pulling raw member types
+	case
+		When Membership_Type IN ('Lifetime', 'Emeritus', 'Emeritus without Science', 'Science Advocate','Supporting','Supporting without Science','Retired') then 'Enthusiast'
+		When Membership_Type IN ('Silver','Gold','Platinum','Regular','Post Doc','NPA Post Doc','Patron','Paid Life','Teacher','Teacher with SBF') then 'Scientist'
+		When Membership_Type IN ('Student','Student Gold','Student Silver') then 'Student'
+		When Membership_Type IN ('Sponsored','Sponsored Student Silver') then 'Sponsored'
+		When Membership_Type IN ('Elemental') then 'Elemental'
+	else Membership_Type end as 'Membership_Audience',
+
+	Membership_Type,
+
+	Product_Type as 'Product_Type',
+
+	case
+		When Mem.NU__Status__c = 'Grace' then 'Gracing'
+		When Mem.NU__Status__c = 'Current' and Mem.CurrentMem_End_Date < getdate() and NextMem_Start_Date is null then 'Gracing'
+	else Mem.NU__Status__c end as 'Membership_Status',
+
+
+	cast(CreatedDate as date) 'CreatedDate',
+
+	Case
+        --when Mem.ControlGroupID__c <> '' then Mem.ControlGroupDate__c else Mem.CreatedDate end as 'Created Date',
+		--Updated logic to use date from Adv only when it precedes the NU Order date. Also updated to use order created date rather than membership created date
+		when Mem.ControlGroupID__c <> '' and Mem.ControlGroupDate__c < CreatedDate
+			then cast(Mem.ControlGroupDate__c as date)
+			else cast(CreatedDate as date) end as 'Order_Created_Date',
+
+	Case
+        --when Mem.ControlGroupID__c <> '' then Mem.ControlGroupDate__c else Mem.CreatedDate end as 'Created Date',
+		--Updated logic to use date from Adv only when it precedes the NU Order date. Also updated to use order created date rather than membership created date
+		when Mem.ControlGroupID__c <> '' and Mem.ControlGroupDate__c < CreatedDate
+			then cast(Mem.ControlGroupDate__c as date)
+			else cast(CreatedDate as date) end as 'Order_Created_Date_2',--this was renamed to Order_Created_Date_Hierarchy in the PBI Master Dataset
+	
+	cast(Prev_Term_End_Date as date) 'Prev_Term_End_Date',-- Getting the Pervious Term End Date
+	
+	cast(CurrentMem_Start_Date as date) 'CurrentMem_Start_Date', -- Getting the Current Membership Term Start Date
+
+    cast(CurrentMem_End_Date as date) 'CurrentMem_End_Date',-- Getting the Current Membership Term End Date
+
+	--Replaces this logic for next mem order date...
+	--Case
+    --    when NxMem.ControlGroupID__c <> '' then NxMem.ControlGroupDate__c 
+	--		  else NxMem.CreatedDate end as 'Next-Mem-OrderDate',
+    cast(NextMem_Start_Date as date) 'NextMem_Start_Date',-- Getting the Next Membership Term Start Date
+	
+    cast(NextMem_End_Date as date) 'NextMem_End_Date',-- Getting the Next Membership Term End Dat
+
+
+--Updated logic here for next mem order date
+	Case
+		--Updated logic to use date from Adv only when it precedes the NU Order date. Also updated to use order created date rather than membership created date
+		when NxMemControlGroupID__c <> '' and NxMemControlGroupDate__c < NxMemCreatedDate
+			then cast(NxMemControlGroupDate__c as date)
+			else cast(NxMemCreatedDate as date) end as 'Next_Order_Created_Date',
+	
+	CurrentMem_Start_year,-- Getting the Current Membership Start Year
+
+    CurrentMem_Start_Month, -- Getting the Current Membership Start Month,
+
+    CurrentMem_Exp_year, -- Getting the Current Membership Expired Year,
+	
+    CurrentMem_Exp_Month, -- Getting the Current Membership Expired Month,
+
+    
+    CurrentMem_KeyCode,-- Getting the Current Membership KeyCode
+	NextMem_KeyCode,-- Getting the Next Membership KeyCode
+	PrvtMem_KeyCode,-- Getting the Previous Membership KeyCode 
+
+
+    Case 
+        when NU__SubTotal__c IS NOT NULL then NU__SubTotal__c
+        else Rate__c
+        end as 'Membership_Rate',
+
+    Case
+        when Membership_Type IN ('Elemental') then 'Paid'
+        when NU__SubTotal__c IS NOT NULL and NU__SubTotal__c > 0 then 'Paid'
+        when NU__SubTotal__c IS NULL and Rate__c > 0 then 'Paid'
+        else 'Sponsored'
+        end as 'Governance_Paid_Member', --added 24/01/26
+
+
+	    Case
+		when Adv_Term = 1 then 'Acquisition'
+		when DATEDIFF(Month,Prev_Term_End_Date,CurrentMem_Start_Date) < 3  then 'Renewal'
+		when Membership_Type = 'Lifetime' then 'Renewal'
+		when Membership_Type = 'Paid Life' then 'Renewal'
+		when DATEDIFF(Month,Prev_Term_End_Date,CurrentMem_Start_Date) >= 3 and DATEDIFF(Month,Prev_Term_End_Date,CurrentMem_Start_Date) < 13  then 'Reinstatement'
+    		else 'Acquisition Winback' end as 'Order_Type', --'Acquisition/Renewal',
+
+
+    case
+	when Shipping_Country = 'United States' then 'Domestic'
+	when Shipping_Country = 'United States' and Shipping_State in 
+		('NULL','AA','AE','AK','AL','AP','AR','AS','AZ','CA','CO','CT','DC','DE','FL','FM','GA','GU','HI','IA','ID','IL',
+		'IN','KS','KY','LA','MA','MD','ME','MH','MI','MN','MO','MP','MS','MT','NC','ND','NE','NH','NJ','NM','NV','NY',
+		'OH','OK','OR','PA','PR','RI','SC','SD','TN','TX','UM','UT','VA','VI','VT','WA','WI','WV','WY') then 'Domestic'
+	when Shipping_Country <> 'United States' and Shipping_Country is not NULL then 'International'
+ 
+	when Shipping_Country <> 'United States' and Shipping_Country is NULL and Shipping_State in --shipping country null but state like US
+		('NULL','AA','AE','AK','AL','AP','AR','AS','AZ','CA','CO','CT','DC','DE','FL','FM','GA','GU','HI','IA','ID','IL',
+		'IN','KS','KY','LA','MA','MD','ME','MH','MI','MN','MO','MP','MS','MT','NC','ND','NE','NH','NJ','NM','NV','NY',
+		'OH','OK','OR','PA','PR','RI','SC','SD','TN','TX','UM','UT','VA','VI','VT','WA','WI','WV','WY') then 'Unknown'
+ 
+	when Shipping_Country <> 'United States' and Shipping_Country is NULL and Shipping_State not in --shipping country null and state not like US
+		('NULL','AA','AE','AK','AL','AP','AR','AS','AZ','CA','CO','CT','DC','DE','FL','FM','GA','GU','HI','IA','ID','IL',
+		'IN','KS','KY','LA','MA','MD','ME','MH','MI','MN','MO','MP','MS','MT','NC','ND','NE','NH','NJ','NM','NV','NY',
+		'OH','OK','OR','PA','PR','RI','SC','SD','TN','TX','UM','UT','VA','VI','VT','WA','WI','WV','WY') then 'Unknown'
+ 
+	when Shipping_Country is NULL and Shipping_State is NULL then 'Unknown'
+	end as 'Location',
+
+	Shipping_Country,
+    Shipping_State,-- Getting the  Shipping State Code from the Account table
+	Shipping_City,
+	Shipping_Street,
+	Shipping_ZipCode,
+
+	Case Shipping_State
+	When 'AA' then 'Armed Forces Americas'
+	When 'AE' then 'Armed Forces Europe'
+	When 'AK' then 'Alaska'
+	When 'AL' then 'Alabama'
+	When 'AP' then 'Armed Forces Pacific'
+	When 'AR' then 'Arkansas'
+	When 'AS' then 'American Samoa'
+	When 'AZ' then 'Arizona'
+	When 'CA' then 'California'
+	When 'CO' then 'Colorado'
+	When 'CT' then 'Connecticut'
+	When 'DC' then 'District of Columbia'
+	When 'DE' then 'Delaware'
+	When 'FL' then 'Florida'
+	When 'FM' then 'Federated States of Micronesia'
+	When 'GA' then 'Georgia'
+	When 'GU' then 'Guam'
+	When 'HI' then 'Hawaii'
+	When 'IA' then 'Iowa'
+	When 'ID' then 'Idaho'
+	When 'IL' then 'Illinois'
+	When 'IN' then 'Indiana'
+	When 'KS' then 'Kansas'
+	When 'KY' then 'Kentucky'
+	When 'LA' then 'Louisiana'
+	When 'MA' then 'Massachusetts'
+	When 'MD' then 'Maryland'
+	When 'ME' then 'Maine'
+	When 'MH' then 'Marshall Islands'
+	When 'MI' then 'Michigan'
+	When 'MN' then 'Minnesota'
+	When 'MO' then 'Missouri'
+	When 'MP' then 'Northern Mariana Islands'
+	When 'MS' then 'Mississipi'
+	When 'MT' then 'Montana'
+	When 'NC' then 'North Carolina'
+	When 'ND' then 'North Dakota'
+	When 'NE' then 'Nebraska'
+	When 'NH' then 'New Hampshire'
+	When 'NJ' then 'New Jersey'
+	When 'NM' then 'New Mexico'
+	When 'NV' then 'Nevada'
+	When 'NY' then 'New York'
+	When 'OH' then 'Ohio'
+	When 'OK' then 'Oklahoma'
+	When 'OR' then 'Oregon'
+	When 'PA' then 'Pennsylvania'
+	When 'PR' then 'Puerto Rico'
+	When 'RI' then 'Rhode Island'
+	When 'SC' then 'South Carolina'
+	When 'SD' then 'South Dakota'
+	When 'TN' then 'Tennessee'
+	When 'TX' then 'Texas'
+	When 'UM' then 'United States Minor Outlying Islands'
+	When 'UT' then 'Utah'
+	When 'VA' then 'Virginia'
+	When 'VI' then 'US Virgin Islands'
+	When 'VT' then 'Vermont'
+	When 'WA' then 'Washington'
+	When 'WI' then 'Wisconsin'
+	When 'WV' then 'West Virginia'
+	When 'WY' then 'Wyoming'
+		Else NULL
+	End as 'Shipping_State_Full',
+
+	
+	Case
+		 --When there is a renewal count it
+		when NextMem_Start_Date is not null then 1
+
+		When Membership_Type IN ('Regular',' Platinum', 'Gold', 'Silver', 'Supporting') then --Regular, Gold, Platinum, Silver, Supporting membership types - Group 1 - Asymptotes per group 42%/64%/77%/91%
+			Case
+				When CurrentMem_AutoRenew = 'false' then --Not auto renew
+					Case
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) < -150 then --Before renewal period
+							Case 
+								When MID = 1 then .42
+								When MID Between 2 and 3 then .64
+								When MID >= 4 then .77
+								else -1.41
+							end
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -150 and 63 then --Regular renewal period
+							Case 
+								When Adv_Term = 1 then .42-(.0017*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))+.2647))
+								When Adv_Term Between 2 and 3 then .64-(.0026*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)))+.439)
+								When Adv_Term >= 4 then .77-(.0031*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)))+.5531)
+								else -1.42
+							end
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between 64 and 277 then --Winback renewal period
+							Case 
+								When Adv_Term = 1 then .03
+								When Adv_Term Between 2 and 3 then .04
+								When Adv_Term >= 4 then .02
+								else -1.43
+							end
+							-- the renewal period went to 12 months, so should the 277 be 365 instead
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) > 277 then 0 --After renewal period
+						else -1.31 
+					end
+				When CurrentMem_AutoRenew = 'true' then --Auto renewal 
+					Case
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) < -70 then .91
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -70 AND -65 then .91-(.0232*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + 1.6782)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -64 AND -59 then .91-(.1013*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + 6.6627)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -58 AND 160 then .91-(.0006*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + .7039)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) > 160 then 0
+					else -1.21
+				end
+			else -1.2
+		end
+
+		When Membership_Type IN ('Student', 'Student Gold', 'Student Silver') then --Student, Student Silver, Student Gold membership types - Group 2 - Asymptotes per group 19%/39%/54%/79%
+			Case
+				When CurrentMem_AutoRenew = 'false' then --Not auto renew
+					Case
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) < -150 then --Before renewal period
+							Case 
+								When MID = 1 then .19
+								When MID Between 2 and 3 then .39
+								When MID >= 4 then .54
+								else -2.41
+							end
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -150 and 63 then --Regular renewal period
+							Case 
+								When Adv_Term = 1 then .19-(.0007*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))+.1104))
+								When Adv_Term Between 2 and 3 then .39-(.0016*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)))+.2463)
+								When Adv_Term >= 4 then .54-(.0022*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)))+.3563)
+								else -2.42
+							end
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between 64 and 277 then --Winback renewal period
+							Case 
+								When Adv_Term = 1 then .028
+								When Adv_Term Between 2 and 3 then .051
+								When Adv_Term >= 4 then .055
+								else -2.43
+							end
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) > 277 then 0 --After renewal period
+						else -2.31 
+					end
+				When CurrentMem_AutoRenew = 'true' then --Auto renewal 
+					Case
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) < -70 then .79
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -70 AND -65 then .79-(.0225*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + 1.6656)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -64 AND -59 then .79-(.0661*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + 4.4583)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -58 AND 160 then .79-(.0009*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + .5955)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) > 160 then 0
+					else -2.21
+				end
+			else -2.2
+		end
+
+		When Membership_Type = 'Science Advocate' then --Advocate Members - Group 3 - Asymptotes per group 27%/52%/67%/83%
+			Case
+				When CurrentMem_AutoRenew = 'false' then --Not auto renew
+					Case
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) < -150 then --Before renewal period
+							Case 
+								When Adv_Term = 1 then .27
+								When Adv_Term Between 2 and 3 then .52
+								When Adv_Term >= 4 then .67
+								else -3.41
+							end
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -150 and 63 then  --Regular renewal period
+							Case 
+								When Adv_Term = 1 then .27-(.001*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))+.1613))
+								When Adv_Term Between 2 and 3 then .52-(.0021*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)))+.3524)
+								When Adv_Term >= 4 then .67-(.0027*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)))+.4698)
+								else -3.42
+							end
+							-- the renewal period went to 12 months, so should the 277 be 365 instead
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between 64 and 277 then  --Winback renewal period
+							Case 
+								When Adv_Term = 1 then .025
+								When Adv_Term Between 2 and 3 then .045
+								When Adv_Term >= 4 then .049
+								else -3.43
+							end
+							-- the renewal period went to 12 months, so should the 277 be 365 instead
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) > 277 then 0 --After renewal period
+						else -3.31 
+					end
+				When CurrentMem_AutoRenew = 'true' then --Auto renewal 
+					Case
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) < -70 then .83
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -70 AND -65 then .83-(.0232*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + 1.6782)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -64 AND -59 then .83-(.1013*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + 6.6627)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -58 AND 160 then .83-(.0006*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + .7039)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) > 160 then 0
+					else -3.21
+				end
+			else -3.2
+		end
+
+		When Membership_Type IN ('Retired') then --Retired - Group 4 - Asymptotes per group 44%/67%/72%/83%
+			Case
+				When CurrentMem_AutoRenew = 'false' then --Not auto renew
+					Case
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) < -150 then --Before renewal period
+							Case 
+								When MID = 1 then .44
+								When MID Between 2 and 3 then .67
+								When MID >= 4 then .72
+								else -4.41
+							end
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -150 and 63 then --Regular renewal period
+							Case 
+								When Adv_Term = 1 then .44-(.0017*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))+.3043))
+								When Adv_Term Between 2 and 3 then .67-(.0021*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)))+.5007)
+								When Adv_Term >= 4 then .72-(.0029*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)))+.5296)
+								else -4.42
+							end
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between 64 and 277 then --Winback renewal period
+							Case 
+								When Adv_Term = 1 then .03
+								When Adv_Term Between 2 and 3 then .039
+								When Adv_Term >= 4 then .039
+								else -4.43
+							end
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) > 277 then 0 --After renewal period
+						else -4.31 
+					end
+				When CurrentMem_AutoRenew = 'true' then --Auto renewal 
+					Case
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) < -70 then .83
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -70 AND -65 then .83-(.0232*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + 1.6782)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -64 AND -59 then .83-(.1013*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + 6.6627)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -58 AND 160 then .83-(.0006*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + .7039)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) > 160 then 0
+					else -4.21
+				end
+			else -4.2
+		end
+
+		When Membership_Type IN ('Teacher') then --Teacher - Group 5 - Asymptotes per group 32%/59%/71%/83%
+			Case
+				When CurrentMem_AutoRenew = 'false' then --Not auto renew
+					Case
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) < -150 then --Before renewal period
+							Case 
+								When MID = 1 then .32
+								When MID Between 2 and 3 then .59
+								When MID >= 4 then .71
+								else -5.41
+							end
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -150 and 63 then --Regular renewal period
+							Case 
+								When Adv_Term = 1 then .32-(.0012*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))+.1818))
+								When Adv_Term Between 2 and 3 then .59-(.0023*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)))+.3679)
+								When Adv_Term >= 4 then .71-(.0029*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)))+.4458)
+								else -5.42
+							end
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between 64 and 277 then --Winback renewal period
+							Case 
+								When Adv_Term = 1 then .03
+								When Adv_Term Between 2 and 3 then .052
+								When Adv_Term >= 4 then .066
+								else -5.43
+							end
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) > 277 then 0 --After renewal period
+						else -5.31 
+					end
+				When CurrentMem_AutoRenew = 'true' then --Auto renewal 
+					Case
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) < -70 then .83
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -70 AND -65 then .83-(.0232*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + 1.6782)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -64 AND -59 then .83-(.1013*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + 6.6627)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -58 AND 160 then .83-(.0006*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + .7039)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) > 160 then 0
+					else -5.21
+				end
+			else -5.2
+		end
+ 
+ 		When Membership_Type IN ('Post Doc') then --Post Doc - Group 6 - Asymptotes per group 32%/48%/70%/83%
+			Case
+				When CurrentMem_AutoRenew = 'false' then --Not auto renew
+					Case
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) < -150 then --Before renewal period
+							Case 
+								When MID = 1 then .32
+								When MID Between 2 and 3 then .48
+								When MID >= 4 then .70
+								else -6.41
+							end
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -150 and 63 then --Regular renewal period
+							Case 
+								When Adv_Term = 1 then .32-(.0012*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))+.1779))
+								When Adv_Term Between 2 and 3 then .48-(.0018*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)))+.2812)
+								When Adv_Term >= 4 then .70-(.0029*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)))+.4499)
+								else -6.42
+							end
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between 64 and 277 then --Winback renewal period
+							Case 
+								When Adv_Term = 1 then .043
+								When Adv_Term Between 2 and 3 then .063
+								When Adv_Term >= 4 then .067
+								else -6.43
+							end
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) > 277 then 0 --After renewal period
+						else -6.31 
+					end
+				When CurrentMem_AutoRenew = 'true' then --Auto renewal 
+					Case
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) < -70 then .83
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -70 AND -65 then .83-(.0232*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + 1.6782)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -64 AND -59 then .83-(.1013*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + 6.6627)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -58 AND 160 then .83-(.0006*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + .7039)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) > 160 then 0
+					else -6.21
+				end
+			else -6.2
+		end
+
+		When Membership_Type IN ('Emeritus') then --Emeritus - Group 7 - Asymptotes per group 42%/64%/77%/91%
+			Case
+				When CurrentMem_AutoRenew = 'false' then --Not auto renew
+					Case
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) < -150 then --Before renewal period
+							Case 
+								When MID = 1 then .42
+								When MID Between 2 and 3 then .64
+								When MID >= 4 then .77
+								else -7.41
+							end
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -150 and 63 then --Regular renewal period
+							Case 
+								When Adv_Term = 1 then .42-(.0017*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))+.2647))
+								When Adv_Term Between 2 and 3 then .64-(.0026*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)))+.439)
+								When Adv_Term >= 4 then .77-(.0031*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)))+.5531)
+								else -7.42
+							end
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between 64 and 277 then --Winback renewal period
+							Case 
+								When Adv_Term = 1 then .03
+								When Adv_Term Between 2 and 3 then .04
+								When Adv_Term >= 4 then .02
+								else -7.43
+							end
+						When datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) > 277 then 0 --After renewal period
+						else -7.31 
+					end
+				When CurrentMem_AutoRenew = 'true' then --Auto renewal 
+					Case
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) < -70 then .91
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -70 AND -65 then .91-(.0232*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + 1.6782)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -64 AND -59 then .91-(.1013*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + 6.6627)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) Between -58 AND 160 then .91-(.0006*(datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date))) + .7039)
+						when datediff(day, cast(CurrentMem_End_Date as date), cast(GETDATE() as date)) > 160 then 0
+					else -7.21
+				end
+			else -7.2
+		end
+
+	--Catch all for rest of the member types
+
+	else 0
+	 --when Membership_Name IN ('Lifetime', 'Paid Life', 'Emeritus w/o Science', 'NPA Post Doc', 'Patron', 'Sponsored', 'Sponsored Student Silver', 'Supporting without Science', 'Teacher with SBF','Elemental') then 0
+	end as 'Renewal_Probability',
+
+	Case
+	when NxMemId is null then 'No' 
+	else 'Yes' end as 'Next_Term_Exists',
+
+	Case
+	--When there is a renewal count it
+	--Updated to also look at status since future term could be canceled which would mean the member is not renewed
+	when NextMem_Start_Date is not null and NxMemNU__Status__c <> 'Cancelled' then 1
+	 else 0
+	 end as 'Renewed',
+
+	Case
+		when Adv_Term = 1 then 'Term 1'
+		when Adv_Term Between 2 and 3 then 'Term 2-3'
+		when Adv_Term > 3 then 'Term 4+'
+		end as 'Term_Group',
+	
+	Adv_Term as 'Adv_Term', -- Pulling the Current Membership Term from Advantage
+
+	Adv_Next_Term as 'Adv_Next_Term',-- Pulling the Next Membership Term from Advantage
+	
+	Subscription_Id,
+	Subscription_Name,
+
+	CurrentMem_AutoRenew, -- Getting the Current Membership Auto Renew Status
+	NextMem_AutoRenew, -- Getting the Next Membership Auto Renew Status
+	PrvMem_AutoRenew, -- Getting the Previous Membership Auto Renew Status
+
+	case when CurrentMem_CTC is not null then CurrentMem_CTC else 'No CTC' end as CurrentMem_CTC,-- Getting the Current Membership CTC
+	case when NextMem_CTC is not null then NextMem_CTC else 'No CTC' end as NextMem_CTC, -- Getting the Next Membership CTC
+	case when PrvtMem_CTC is not null then PrvtMem_CTC else 'No CTC' end as PrvtMem_CTC, -- Getting the Previous Membership CTC 
+	Promote_via_Email,
+	Promote_via_Mail,
+
+	case when Eth_ID in (select ID from NimbleWorkspaceMBRS.dbo.EthnicOrigins group by ID having count(*) > 1) then 'Multiple' else EthnicOrigins end as 'Ethnic_Origins',
+	
+	EthnicOrigins_sd,
+
+	case when Rac_ID in (select ID from NimbleWorkspaceMBRS.dbo.RacialIdentity group by ID having count(*) > 1) then 'Multiple ethnicities/other' 
+	when RacialIdentity in ('Asian','Asian or Pacific Islander','Asian/Pacific Islander','C - Asian','Native Hawaiian/Other PacificIslander') then 'Asian or Pacific Islander'
+	when RacialIdentity in ('A - African American/Black','African American/Black','Black','Black or African American') then 'Black'
+	when RacialIdentity in ('Hispanic or Latino/a/x','Hispanic or Latinx','Hispanic/Latino','E - Hispanic/Latino') then 'Hispanic or Latino/a/x'
+	when RacialIdentity in ('American Indian/Alaska Native','B - Amer Indian/Alaska Native','Indigenous (e.g., North American Indian Navajo, South American Indian, Quechua, Aboriginal Australian)') then 'Indigenous (e.g., North American Indian Navajo, South American Indian, Quechua, Aboriginal Australian)'
+	when RacialIdentity in ('Prefer not to answer') then 'Prefer not to answer'
+	when RacialIdentity is NULL then 'Missing'
+	when RacialIdentity in ('Other','X - Other') then 'Other'
+	when RacialIdentity in ('D - White','White','White (Non-Hispanic)') then 'White'
+	else RacialIdentity end as 'Racial_Identity',
+	
+	RacialIdentity_sd,
+
+	case when Gen_ID in (select ID from NimbleWorkspaceMBRS.dbo.GenderIdentity group by ID having count(*) > 1) then 'Multiple' else GenderIdentity end as 'Gender_Identity',
+	
+	GenderIdentity_sd,
+
+	case when SO_ID in (select ID from NimbleWorkspaceMBRS.dbo.SexualOrientation group by ID having count(*) > 1) then 'Multiple' else SexualOrientation end as 'Sexual_Orientation',
+	
+	SexualOrientation_sd,
+
+	case when Dis_ID in (select ID from NimbleWorkspaceMBRS.dbo.DisabilityStatus group by ID having count(*) > 1) then 'Multiple' else DisabilityStatus end as 'Disability_Status',
+	First_Name,
+	Last_Name,
+	Birth_Year,
+
+	case
+	when Birth_Year = 'Prefer not to Answer' then 'Prefer not to Answer'
+	when Birth_Year <> 'Prefer not to Answer' then cast(year(getdate())- Birth_Year as varchar)
+	end as 'Age',
+
+	case 
+	when Birth_Year is null then 'Missing'
+	when Birth_Year = 'Prefer not to answer' then 'Prefer not to answer' -- JX0816 separated missing and prefer not to answer
+    when year(getdate())-Birth_Year >= 70 then '70 and above'
+    when year(getdate())-Birth_Year >= 60 then '60-69'
+    when year(getdate())-Birth_Year >= 50 then '50-59'
+    when year(getdate())-Birth_Year >= 40 then '40-49'
+    when year(getdate())-Birth_Year >= 30 then '30-39'
+    when year(getdate())-Birth_Year <= 29 then '29 and under'
+    end as 'Age group',
+
+	-- NU__Status__c 'Membership_Status_Sanctions',
+
+	Mailing_City,
+	Mailing_Country,
+	Mailing_ZipCode,
+	Mailing_State,
+	Mailing_Street,
+	
+	
+	Primary_Section,
+	Secondary_Section,
+	Tertiary_Section,
+	Employment_Sector,
+	Job_Function,
+	Billing_Company,
+	Highest_Degree_Description,
+	Highest_Degree,
+	Primary_Discipline,
+	Suffix,
+	Title,
+	
+	case when RecordTypeId = '012610000005HnwAAE' then 'Fellow' else Prize_Name end as 'Award_Type',
+	
+	Committee_Name,
+	cast(Committee_Start_Date as date) 'Committee_Start_Date',
+	Committee_Start_Year,
+	cast(Committee_End_Date as date) 'Committee_End_Date',
+	Committee_End_Year,
+	Committee_Mem_Status,
+
+	--JX new variables 7/6
+	Education,
+	Award_Status,
+	Award_Year,
+	CASE
+	   WHEN RecordTypeId = '012610000005HnwAAE' AND Award_Status is null THEN 'Honorary Fellow'
+	   END AS 'Honorary_Fellow_Status',
+
+	--IDP field for STPF
+	[IDP],
+	BillingCompany__c,
+    
+	case when Membership_Type in ('Elemental') then IMP_InstitutionCode
+ 	else null
+  	end as IMP_InstitutionCode
+
+from 
+
+#MemQ Mem
+
+order by Account_Id desc
+
+go
