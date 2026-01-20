@@ -1,27 +1,3 @@
---Master Membership Query
---V1.6: JX added Continuous_Membership_Start_Date, Join_On_Date, Governance_Paid_Member; updated Membership_Rate and Honorary_Fellow_Status
--- YB updated the logic for Location 2/6/24
--- YB updated NULL CTCs to 'No CTC' and corrected the spelling of "District of Columbia"
--- YB updated the logic for Order_Type: changed "Membership_Name" to "Membership_Type" in the case when statement
---V1.5: replaced Mem.CustomerNumber__c with Acc.CustomerNumber__c (joining Mem and Acc through Mem.__Account2__c); replaced Mem.__CustomerEmail__c with Acc.PersonEmail
--- added Acc.ExternalID__c and used the last 8 digits on the left side of the delimiter '-' in Acc.ExternalID__c to replace NULLs in Acc.CustomerNumber__c
---V1.4.1: 
---o	Separated “Missing” and “Prefer not to answer” for all the demographics variables (e.g., age, racial, etc.)
---o	Replaced “Grace” with “Gracing” for all.
---o	Removed “Membership_Status_Sanctions” variable.
---V1.4 Elemental Members added
---V1.3 YB and JX added 5 demographic categories and deduplicated for those who made multiple selections (shown as "multiple")
---		- also added variables that existed in the Membership Demographics Report, MBR List Pull, and Sanctions List Pull but not V1.2 of the Membership Master Query
---		- variables in the MCS List Pull were not included to avoid creating duplicate records
---V1.2 identified @example.com emails, AAAS members, and specific term numbers of members
---V1.1 Added the field "Promote via Email" from NimbleReplica.dbo.Account, email addresses, and shipping city, street & zip code; tested removing @example.com and NULLs in subscription ID
---V1.0 Added full names for US States and territories compared to past versions
-
-
---Definitions of marketing efforts for the created column "Renewal Period"
---	150 days before expire: when the first marketing effort goes out
---	64 days after expire: when gracing ends
---	277 days after expire: when the renewal winback period begins
 
 use NimbleReplica
 
@@ -61,9 +37,6 @@ go
 )
 
 ,
---YB 6/21
---adding CTEs for demographic variables
---need to filter these to be unique first, then join to other tables. otherwise we will get less data than we are supposed to.
 	
 	cteEthnicOrigin(ID, EthnicOrigins,EthnicOrigins_sd,RN1) 
 	as (
@@ -92,7 +65,6 @@ go
 	select *, RN5 = row_number() over (partition by ID order by ID) from NimbleWorkspaceMBRS.dbo.DisabilityStatus
 	),
 
-	--6/28 YB: these tables were all deduplicated, but we may need to deal with them differently depending on stakeholders' needs
 	cteAward as (select *, RN6 = row_number() over (partition by Account__c order by Account__c) from Award__c),
 	
 	cteCM as (select *, RN7 = row_number() over (partition by NU__Account2__c order by NU__Account2__c) from NU__CommitteeMembership__c where NU__State__c = 'Current'),
@@ -170,9 +142,6 @@ NxMem.ControlGroupID__c NxMemControlGroupID__c, NxMem.ControlGroupDate__c NxMemC
 
 	acc.PromoteViaEmail__pc as 'Promote_via_Email',
 	acc.PromoteViaMail__pc as 'Promote_via_Mail',
-
-
-	--6/21 YB adding demographic variables
 	Eth.EthnicOrigins,
 	Eth.EthnicOrigins_sd,
 	Eth.ID 'Eth_ID',
@@ -190,7 +159,6 @@ NxMem.ControlGroupID__c NxMemControlGroupID__c, NxMem.ControlGroupDate__c NxMemC
 	--row numbers below:
 	Eth.RN1,rac.RN2,gen.RN3,so.RN4,dis.RN5,
 
-	--6/27 YB new unique variables
 	acc.FirstName 'First_Name',
 	acc.LastName 'Last_Name',
 	acc.NU__Suffix__c 'Suffix',
@@ -221,9 +189,6 @@ NxMem.ControlGroupID__c NxMemControlGroupID__c, NxMem.ControlGroupDate__c NxMemC
 	year(cm.NU__StartDate__c) 'Committee_Start_Year',
 	cm.NU__State__c 'Committee_Mem_Status',
 
-
-
-	-- JX ADDED FIELDS FROM MBR LIST PULL 7/6
 	   acc.highestdegree__pc 'Education',
 	   awd.Status__c 'Award_Status',
 	   awd.AwardYear__c 'Award_Year',
@@ -232,7 +197,7 @@ NxMem.ControlGroupID__c NxMemControlGroupID__c, NxMem.ControlGroupDate__c NxMemC
 	acc.IdpId__c 'IDP',
 
 	Bill.BillingCompany__c,
-	Bill.[Name] 'IMP_InstitutionCode', --YB added 11/8
+	Bill.[Name] 'IMP_InstitutionCode',
 
 	--24/01/26 Adding fields for Governance list pull
 	acc.Continuous_Membership_Start__c 'Continuous_Membership_Start_Date',
@@ -292,17 +257,16 @@ left join Account Bill on O.NU__BillTo__c = Bill.Id --Join from current order to
 
 where
 
-Year(Mem.NU__EndDate__c) >= (year(GETDATE()) - 5) --8/4/23: YB: Does this date filter need to date back more to accomodate multiple reports?
+Year(Mem.NU__EndDate__c) >= (year(GETDATE()) - 5) 
     and LEN(Mem.NU__ExternalId__c) > 13
     and (LEN(NxMem.NU__ExternalId__c) > 13 or NxMem.NU__ExternalID__c is null)
---ISlim 2023-03-09
+
 and(
 -- Checking that the Left Side of the "-"Delimeter is Numeric
 ISNUMERIC(Left(Mem.NU__ExternalID__c, 12)) = 1
 -- Checking that the Right Side of the "-"Delimeter is Numeric
 AND ISNUMERIC(Right(Mem.NU__ExternalID__c, Len(Mem.NU__ExternalID__c) - 13)) = 1
 )
---ISlim 2023-03-09
 	and NOT (Memtyp.Name = 'Supporting' AND Year(Mem.NU__EndDate__c) < 2020)
 	and Mem.NU__Status__c <> 'Cancelled'
 go
@@ -321,7 +285,6 @@ select
 	Continuous_Membership_Start_Date, -- added 24/01/26
 	Join_On_Date, -- added 24/01/26
 
-	--4/19: Yujia updated the categories according to the Membership dictionary
 	--to align with target audiences identified by marketing; a higher level of looking at the data than pulling raw member types
 	case
 		When Membership_Type IN ('Lifetime', 'Emeritus', 'Emeritus without Science', 'Science Advocate','Supporting','Supporting without Science','Retired') then 'Enthusiast'
@@ -350,7 +313,6 @@ select
 			then cast(Mem.ControlGroupDate__c as date)
 			else cast(CreatedDate as date) end as 'Order_Created_Date',
 
---4/26: Yujia added another duplicate order date variable for the ACQ report
 	Case
         --when Mem.ControlGroupID__c <> '' then Mem.ControlGroupDate__c else Mem.CreatedDate end as 'Created Date',
 		--Updated logic to use date from Adv only when it precedes the NU Order date. Also updated to use order created date rather than membership created date
@@ -393,8 +355,7 @@ select
 	NextMem_KeyCode,-- Getting the Next Membership KeyCode
 	PrvtMem_KeyCode,-- Getting the Previous Membership KeyCode 
 
-    --Updated 1.26.2024 to use subtoal for rate if it exists. NH
-	--YB 1/26/24 removed the old Membership_Rate variable
+
     Case 
         when NU__SubTotal__c IS NOT NULL then NU__SubTotal__c
         else Rate__c
@@ -408,10 +369,6 @@ select
         end as 'Governance_Paid_Member', --added 24/01/26
 
 
-
--- 2023-03-23 Review Session ended here --
-
---4/19 Yujia edited 4 -> 3 to align with membership definitions; 4/26 updated category names (reinstatement & acq winback)
 	    Case
 		when Adv_Term = 1 then 'Acquisition'
 		when DATEDIFF(Month,Prev_Term_End_Date,CurrentMem_Start_Date) < 3  then 'Renewal'
@@ -420,7 +377,7 @@ select
 		when DATEDIFF(Month,Prev_Term_End_Date,CurrentMem_Start_Date) >= 3 and DATEDIFF(Month,Prev_Term_End_Date,CurrentMem_Start_Date) < 13  then 'Reinstatement'
     		else 'Acquisition Winback' end as 'Order_Type', --'Acquisition/Renewal',
 
---YB update 2/6/24
+
     case
 	when Shipping_Country = 'United States' then 'Domestic'
 	when Shipping_Country = 'United States' and Shipping_State in 
@@ -836,15 +793,12 @@ select
 	NextMem_AutoRenew, -- Getting the Next Membership Auto Renew Status
 	PrvMem_AutoRenew, -- Getting the Previous Membership Auto Renew Status
 
-	--YB update 2/12: if CTC code is null then show "No CTC"
 	case when CurrentMem_CTC is not null then CurrentMem_CTC else 'No CTC' end as CurrentMem_CTC,-- Getting the Current Membership CTC
 	case when NextMem_CTC is not null then NextMem_CTC else 'No CTC' end as NextMem_CTC, -- Getting the Next Membership CTC
 	case when PrvtMem_CTC is not null then PrvtMem_CTC else 'No CTC' end as PrvtMem_CTC, -- Getting the Previous Membership CTC 
 	Promote_via_Email,
 	Promote_via_Mail,
 
-
-	--YB adding demographics 6/21
 	case when Eth_ID in (select ID from NimbleWorkspaceMBRS.dbo.EthnicOrigins group by ID having count(*) > 1) then 'Multiple' else EthnicOrigins end as 'Ethnic_Origins',
 	
 	EthnicOrigins_sd,
@@ -854,7 +808,6 @@ select
 	when RacialIdentity in ('A - African American/Black','African American/Black','Black','Black or African American') then 'Black'
 	when RacialIdentity in ('Hispanic or Latino/a/x','Hispanic or Latinx','Hispanic/Latino','E - Hispanic/Latino') then 'Hispanic or Latino/a/x'
 	when RacialIdentity in ('American Indian/Alaska Native','B - Amer Indian/Alaska Native','Indigenous (e.g., North American Indian Navajo, South American Indian, Quechua, Aboriginal Australian)') then 'Indigenous (e.g., North American Indian Navajo, South American Indian, Quechua, Aboriginal Australian)'
-	--8/4/23: Yujia edited here to separate Prefer not to answer and Missing
 	when RacialIdentity in ('Prefer not to answer') then 'Prefer not to answer'
 	when RacialIdentity is NULL then 'Missing'
 	when RacialIdentity in ('Other','X - Other') then 'Other'
@@ -872,8 +825,6 @@ select
 	SexualOrientation_sd,
 
 	case when Dis_ID in (select ID from NimbleWorkspaceMBRS.dbo.DisabilityStatus group by ID having count(*) > 1) then 'Multiple' else DisabilityStatus end as 'Disability_Status',
-
-	--YB new variables 6/27
 	First_Name,
 	Last_Name,
 	Birth_Year,
@@ -936,7 +887,6 @@ select
 	[IDP],
 	BillingCompany__c,
     
-	--YB 1/9/24
 	case when Membership_Type in ('Elemental') then IMP_InstitutionCode
  	else null
   	end as IMP_InstitutionCode
